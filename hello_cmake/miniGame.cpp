@@ -1,17 +1,17 @@
 #include <iostream>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
-
+#include <string>
 struct Player{
     SDL_Surface *mSurface;
     SDL_Texture *mTexture;
     float score;
     float bar;
     float Tx,Ty,Tw,Th;
-    Player(SDL_Renderer* r){
+    Player(SDL_Renderer* r,std::string n){
         Tx=20,Ty=20,Tw=25,Th=33;
         bar=1000;
-        mSurface=SDL_LoadBMP("./test.bmp");
+        mSurface=SDL_LoadBMP(n.c_str());
         if(!(mSurface)){
             SDL_Log("surface創建失敗: %s",SDL_GetError());
         }
@@ -26,7 +26,6 @@ struct Player{
         SDL_DestroyTexture(mTexture);
     }
     void render(SDL_Renderer *r){
-
         SDL_FRect dst{
             .x=Tx,
             .y=Ty,
@@ -53,10 +52,10 @@ struct scene{
     }
     void render(SDL_Renderer *r){
         SDL_FRect dst{
-            .x=0,
+            .x=35,
             .y=0,
-            .w=200,
-            .h=238
+            .w=430,
+            .h=500
         };
         SDL_RenderTexture(r, mTexture, NULL, &dst);
     }
@@ -84,8 +83,8 @@ struct SDLminiGame{
         mRenderer=SDL_CreateRenderer(mWindow,nullptr);
         SDL_SetWindowResizable(mWindow,true); 
         SDL_SetRenderLogicalPresentation(mRenderer, 500, 500,SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
-        player = new Player(mRenderer);
-        player2= new Player(mRenderer);
+        player = new Player(mRenderer,"./test.bmp");
+        player2= new Player(mRenderer,"./test1.bmp");
         back = new scene(mRenderer);
     }
     ~SDLminiGame(){
@@ -115,7 +114,19 @@ struct SDLminiGame{
         if(key_states[SDL_SCANCODE_A]&&player->Tx>0)player->move(-2,0,speed);
     }
     void playerTwoInput(){
-
+        const bool *key_states = SDL_GetKeyboardState(NULL);
+        float speed = 1;
+        if(key_states[SDL_SCANCODE_RSHIFT]&&player2->bar>0){
+            speed += 1;
+            player2->bar-=10;
+        }
+        if(!(key_states[SDL_SCANCODE_RSHIFT])&&(player2->bar<1000)){
+            player2->bar+=10;
+        }  
+        if(key_states[SDL_SCANCODE_I]&&player2->Ty>0)player2->move(0,-2,speed);
+        if(key_states[SDL_SCANCODE_K]&&player2->Ty<480)player2->move(0,2,speed);
+        if(key_states[SDL_SCANCODE_L]&&player2->Tx<480)player2->move(2,0,speed);
+        if(key_states[SDL_SCANCODE_J]&&player2->Tx>0)player2->move(-2,0,speed);
     }
     void Input(){
         SDL_Event event;
@@ -130,9 +141,7 @@ struct SDLminiGame{
             }
         }
         playerOneInput();
-        //float x,y;
-        //SDL_GetMouseState(&x,&y);
-        //SDL_Log("x=%f,y=%f",x,y);
+        playerTwoInput();
     }
     void RenderText(){
         SDL_SetRenderDrawColor(mRenderer, 0xFF, 0x00, 0x00, 0xFF);
@@ -142,22 +151,36 @@ struct SDLminiGame{
 
     }
     void RenderRect(){
-        SDL_FRect rect{
-            .x=390,
+        SDL_FRect PlayerOneRect{
+            .x=480,
             .y=480,
-            .w=player->bar/10,
-            .h=10
+            .w=10,
+            .h=-player->bar/10
         };
-        SDL_FRect boardary{
-            .x=390,
-            .y=478,
-            .w=102,
-            .h=14
+        SDL_FRect PlayerOneBoardary{
+            .x=478,
+            .y=379,
+            .w=14,
+            .h=102
+        };
+        SDL_FRect PlayerTwoRect{
+            .x=10,
+            .y=120,
+            .w=10,
+            .h=-player2->bar/10
+        };
+        SDL_FRect PlayerTwoBoardary{
+            .x=8,
+            .y=19,
+            .w=14,
+            .h=102
         };
         SDL_SetRenderDrawColor(mRenderer, 0x00, 0x00, 0xFF, 0xFF);
-        SDL_RenderFillRect(mRenderer, &rect);
-        SDL_SetRenderDrawColor(mRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
-        SDL_RenderRect(mRenderer,&boardary);
+        SDL_RenderFillRect(mRenderer, &PlayerOneRect);
+        SDL_RenderFillRect(mRenderer, &PlayerTwoRect);
+        SDL_SetRenderDrawColor(mRenderer, 0x50, 0x50, 0x50, 0xFF);
+        SDL_RenderRect(mRenderer,&PlayerOneBoardary);
+        SDL_RenderRect(mRenderer,&PlayerTwoBoardary);
     }
     void Render(){
         SDL_SetRenderDrawColor(mRenderer, 0x00, 0x00, 0x00, 0xFF);
@@ -167,8 +190,8 @@ struct SDLminiGame{
         back->render(mRenderer);
         RenderBall();
         player->render(mRenderer);
+        player2->render(mRenderer);
         RenderRect();
-        RenderText();
         SDL_RenderPresent(mRenderer);
     }
 
@@ -179,7 +202,6 @@ struct SDLminiGame{
         }
     }
 };
-
 int main(int argc,char*argv[]){
     SDLminiGame Game; 
     Game.MainRun();
