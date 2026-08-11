@@ -2,28 +2,37 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <string>
+#include <cmath>
 struct Player{
     SDL_Surface *mSurface;
     SDL_Texture *mTexture;
+    SDL_Surface *OutSurface;
+    SDL_Texture *OutTexture;
+    Uint32 whiteKey;
     float score;
     float bar;
     float Tx,Ty,Tw,Th;
+    float OTx,OTy,OTw,OTh;
     Player(SDL_Renderer* r,std::string n){
-        Tx=20,Ty=20,Tw=25,Th=33;
+        Tx=20,Ty=20,Tw=15,Th=15;
+        OTx=0,OTy=0,OTw=50,OTh=50;
         bar=1000;
         mSurface=SDL_LoadBMP(n.c_str());
-        if(!(mSurface)){
-            SDL_Log("surface創建失敗: %s",SDL_GetError());
-        }
+        whiteKey = SDL_MapSurfaceRGBA(mSurface, 0xFF, 0xFF, 0xFF,0xFF);
+        SDL_SetSurfaceColorKey(mSurface, 1,whiteKey);
         mTexture=SDL_CreateTextureFromSurface(r,mSurface);
-        if(!(mTexture)){
-            SDL_Log("texture創建失敗: %s",SDL_GetError());
-        }
         SDL_DestroySurface(mSurface);
+
+        OutSurface=SDL_LoadBMP("./Outframe.bmp");
+        whiteKey = SDL_MapSurfaceRGBA(OutSurface, 0xFF, 0xFF, 0xFF,0xFF);
+        SDL_SetSurfaceColorKey(OutSurface, 1,whiteKey);
+        OutTexture=SDL_CreateTextureFromSurface(r,OutSurface);
+        SDL_DestroySurface(OutSurface);
     }
     Player(){}
     ~Player(){
         SDL_DestroyTexture(mTexture);
+        SDL_DestroyTexture(OutTexture);
     }
     void render(SDL_Renderer *r){
         SDL_FRect dst{
@@ -32,7 +41,14 @@ struct Player{
             .w=Tw,
             .h=Th
         };
-        SDL_RenderTexture(r, mTexture, NULL, &dst);
+        SDL_FRect Outdst{
+            .x=OTx,
+            .y=OTy,
+            .w=OTw,
+            .h=OTh
+        };
+        SDL_RenderTexture(r, OutTexture, NULL, &Outdst);
+        SDL_RenderTexture(r, mTexture, NULL, &dst);   
     }
     void move(float x,float y,float speed){
         Tx=Tx+x*speed;
@@ -63,12 +79,38 @@ struct scene{
         SDL_DestroyTexture(mTexture);
     }
 };
+struct Ball{
+    SDL_Texture* mTexture;
+    SDL_Surface* mSurface;
+    Uint32 whiteKey;
+    Ball(){}
+    Ball(SDL_Renderer* r){
+        mSurface=SDL_LoadBMP("./ball.bmp");
+        whiteKey = SDL_MapSurfaceRGBA(mSurface, 0xFF, 0xFF, 0xFF,0xFF);
+        SDL_SetSurfaceColorKey(mSurface, 1,whiteKey);
+        mTexture=SDL_CreateTextureFromSurface(r,mSurface);  
+        SDL_DestroySurface(mSurface);
+    }
+    void render(SDL_Renderer *r){
+        SDL_FRect dst{
+            .x=240,
+            .y=240,
+            .w=20,
+            .h=20
+        };
+        SDL_RenderTexture(r, mTexture, NULL, &dst);
+    }
+    ~Ball(){
+        SDL_DestroyTexture(mTexture);
+    }
+};
 struct SDLminiGame{
     SDL_Window *mWindow;
     SDL_Renderer *mRenderer;
     Player* player;
     Player* player2;
     scene* back;
+    Ball* ball;
     bool running = true;
     bool fullscreen=false;
     int windowX,windowY;
@@ -86,10 +128,22 @@ struct SDLminiGame{
         player = new Player(mRenderer,"./test.bmp");
         player2= new Player(mRenderer,"./test1.bmp");
         back = new scene(mRenderer);
+        ball = new Ball(mRenderer);
+        player->Tx=240;
+        player->Ty=400;
+        player->OTx=222.5;
+        player->OTy=382.5;
+
+        player2->Tx=240;
+        player2->Ty=100;
+        player2->OTx=222.5;
+        player2->OTy=82.5;
     }
     ~SDLminiGame(){
         delete back;
         delete player;
+        delete player2;
+        delete ball;
         SDL_DestroyRenderer(mRenderer);
         SDL_DestroyWindow(mWindow);
         SDL_Quit();
@@ -99,6 +153,13 @@ struct SDLminiGame{
         Render();
     }
     void playerOneInput(){
+        float midx,midy;
+        float Xhitbox,Yhitbox;
+        float midOx,midOy;
+        float distance;
+        float deltaR;
+        float dx,dy;
+        bool touch=false;
         const bool *key_states = SDL_GetKeyboardState(NULL);
         float speed = 1;
         if(key_states[SDL_SCANCODE_LSHIFT]&&player->bar>0){
@@ -108,10 +169,25 @@ struct SDLminiGame{
         if(!(key_states[SDL_SCANCODE_LSHIFT])&&(player->bar<1000)){
             player->bar+=10;
         }  
+
         if(key_states[SDL_SCANCODE_W]&&player->Ty>0)player->move(0,-2,speed);
         if(key_states[SDL_SCANCODE_S]&&player->Ty<480)player->move(0,2,speed);
-        if(key_states[SDL_SCANCODE_D]&&player->Tx<480)player->move(2,0,speed);
-        if(key_states[SDL_SCANCODE_A]&&player->Tx>0)player->move(-2,0,speed);
+        if(key_states[SDL_SCANCODE_D]&&player->Tx<440)player->move(2,0,speed);
+        if(key_states[SDL_SCANCODE_A]&&player->Tx>45)player->move(-2,0,speed);
+        
+        midx=player->Tx+7.5;
+        midy=player->Ty+7.5;
+        midOx=player->OTx+25;
+        midOy=player->OTy+25;
+        distance=std::sqrt((midx-midOx)*(midx-midOx)+(midy-midOy)*(midy-midOy));
+        
+        if(distance>17.5){
+            deltaR=distance-17.5;
+            dx=std::fabs(player->Tx-player->OTx);
+            dy=std::fabs(player->Ty-player->OTy);
+            player->OTx=deltaR*(dx/distance);
+            player->OTy=deltaR*(dy/distance);
+        }
     }
     void playerTwoInput(){
         const bool *key_states = SDL_GetKeyboardState(NULL);
@@ -146,9 +222,6 @@ struct SDLminiGame{
     void RenderText(){
         SDL_SetRenderDrawColor(mRenderer, 0xFF, 0x00, 0x00, 0xFF);
         SDL_RenderDebugTextFormat(mRenderer,390, 465, "energy: %.0f",player->bar/10.0f);
-    }
-    void RenderBall(){
-
     }
     void RenderRect(){
         SDL_FRect PlayerOneRect{
@@ -188,7 +261,7 @@ struct SDLminiGame{
         SDL_RenderClear(mRenderer);
 
         back->render(mRenderer);
-        RenderBall();
+        ball->render(mRenderer);
         player->render(mRenderer);
         player2->render(mRenderer);
         RenderRect();
