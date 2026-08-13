@@ -61,8 +61,8 @@ struct scene{
     SDL_Surface* mSurface;
 
     scene(){}
-    scene(SDL_Renderer* r){
-        mSurface=SDL_LoadBMP("./background.bmp");
+    scene(SDL_Renderer* r,std::string name){
+        mSurface=SDL_LoadBMP(name.c_str());
         mTexture=SDL_CreateTextureFromSurface(r,mSurface);
         SDL_DestroySurface(mSurface);
     }
@@ -127,7 +127,7 @@ struct SDLminiGame{
         SDL_SetRenderLogicalPresentation(mRenderer, 500, 500,SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
         player = new Player(mRenderer,"./test.bmp");
         player2= new Player(mRenderer,"./test1.bmp");
-        back = new scene(mRenderer);
+        back = new scene(mRenderer,"./background.bmp");
         ball = new Ball(mRenderer);
         player->Tx=240;
         player->Ty=400;
@@ -157,9 +157,8 @@ struct SDLminiGame{
         float Xhitbox,Yhitbox;
         float midOx,midOy;
         float distance;
-        float deltaR;
-        float dx,dy;
-        bool touch=false;
+        float totalP;
+        float Px,Py;
         const bool *key_states = SDL_GetKeyboardState(NULL);
         float speed = 1;
         if(key_states[SDL_SCANCODE_LSHIFT]&&player->bar>0){
@@ -172,24 +171,30 @@ struct SDLminiGame{
 
         if(key_states[SDL_SCANCODE_W]&&player->Ty>0)player->move(0,-2,speed);
         if(key_states[SDL_SCANCODE_S]&&player->Ty<480)player->move(0,2,speed);
-        if(key_states[SDL_SCANCODE_D]&&player->Tx<440)player->move(2,0,speed);
-        if(key_states[SDL_SCANCODE_A]&&player->Tx>45)player->move(-2,0,speed);
+        if(key_states[SDL_SCANCODE_D]&&player->Tx<444.5)player->move(2,0,speed);
+        if(key_states[SDL_SCANCODE_A]&&player->Tx>40.5)player->move(-2,0,speed);
         
         midx=player->Tx+7.5;
         midy=player->Ty+7.5;
         midOx=player->OTx+25;
         midOy=player->OTy+25;
         distance=std::sqrt((midx-midOx)*(midx-midOx)+(midy-midOy)*(midy-midOy));
-        
         if(distance>17.5){
-            deltaR=distance-17.5;
-            dx=std::fabs(player->Tx-player->OTx);
-            dy=std::fabs(player->Ty-player->OTy);
-            player->OTx=deltaR*(dx/distance);
-            player->OTy=deltaR*(dy/distance);
+            totalP=distance-17.5;
+            Px=midx-midOx;
+            Py=midy-midOy;
+            player->OTx+=totalP*(Px/distance);
+            player->OTy+=totalP*(Py/distance);
         }
+        
     }
     void playerTwoInput(){
+        float midx,midy;
+        float Xhitbox,Yhitbox;
+        float midOx,midOy;
+        float distance;
+        float totalP;
+        float Px,Py;
         const bool *key_states = SDL_GetKeyboardState(NULL);
         float speed = 1;
         if(key_states[SDL_SCANCODE_RSHIFT]&&player2->bar>0){
@@ -201,8 +206,20 @@ struct SDLminiGame{
         }  
         if(key_states[SDL_SCANCODE_I]&&player2->Ty>0)player2->move(0,-2,speed);
         if(key_states[SDL_SCANCODE_K]&&player2->Ty<480)player2->move(0,2,speed);
-        if(key_states[SDL_SCANCODE_L]&&player2->Tx<480)player2->move(2,0,speed);
-        if(key_states[SDL_SCANCODE_J]&&player2->Tx>0)player2->move(-2,0,speed);
+        if(key_states[SDL_SCANCODE_L]&&player2->Tx<444.5)player2->move(2,0,speed);
+        if(key_states[SDL_SCANCODE_J]&&player2->Tx>40.5)player2->move(-2,0,speed);
+        midx=player2->Tx+7.5;
+        midy=player2->Ty+7.5;
+        midOx=player2->OTx+25;
+        midOy=player2->OTy+25;
+        distance=std::sqrt((midx-midOx)*(midx-midOx)+(midy-midOy)*(midy-midOy));
+        if(distance>17.5){
+            totalP=distance-17.5;
+            Px=midx-midOx;
+            Py=midy-midOy;
+            player2->OTx+=totalP*(Px/distance);
+            player2->OTy+=totalP*(Py/distance);
+        }
     }
     void Input(){
         SDL_Event event;
@@ -256,7 +273,7 @@ struct SDLminiGame{
         SDL_RenderRect(mRenderer,&PlayerTwoBoardary);
     }
     void Render(){
-        SDL_SetRenderDrawColor(mRenderer, 0x00, 0x00, 0x00, 0xFF);
+        SDL_SetRenderDrawColor(mRenderer, 0x00, 0x48, 0x00, 0xFF);
         
         SDL_RenderClear(mRenderer);
 
