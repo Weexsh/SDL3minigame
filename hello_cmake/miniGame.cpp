@@ -3,19 +3,21 @@
 #include <SDL3/SDL_main.h>
 #include <string>
 #include <cmath>
+#include <random>
 struct Player{
     SDL_Surface *mSurface;
     SDL_Texture *mTexture;
     SDL_Surface *OutSurface;
     SDL_Texture *OutTexture;
+    int score;
     Uint32 whiteKey;
-    float score;
     float bar;
     float Tx,Ty,Tw,Th;
     float OTx,OTy,OTw,OTh;
     Player(SDL_Renderer* r,std::string n){
-        Tx=20,Ty=20,Tw=15,Th=15;
-        OTx=0,OTy=0,OTw=50,OTh=50;
+        Tw=15,Th=15;
+        OTw=50,OTh=50;
+        score = 0;
         bar=1000;
         mSurface=SDL_LoadBMP(n.c_str());
         whiteKey = SDL_MapSurfaceRGBA(mSurface, 0xFF, 0xFF, 0xFF,0xFF);
@@ -55,7 +57,6 @@ struct Player{
         Ty=Ty+y*speed;
     }
 };
-
 struct scene{
     SDL_Texture* mTexture;
     SDL_Surface* mSurface;
@@ -83,8 +84,10 @@ struct Ball{
     SDL_Texture* mTexture;
     SDL_Surface* mSurface;
     Uint32 whiteKey;
+    float Tx,Ty,Tw,Th;
     Ball(){}
     Ball(SDL_Renderer* r){
+        Tx=240,Ty=240,Tw=20,Th=20;
         mSurface=SDL_LoadBMP("./ball.bmp");
         whiteKey = SDL_MapSurfaceRGBA(mSurface, 0xFF, 0xFF, 0xFF,0xFF);
         SDL_SetSurfaceColorKey(mSurface, 1,whiteKey);
@@ -93,12 +96,24 @@ struct Ball{
     }
     void render(SDL_Renderer *r){
         SDL_FRect dst{
-            .x=240,
-            .y=240,
-            .w=20,
-            .h=20
+            .x=Tx,
+            .y=Ty,
+            .w=Tw,
+            .h=Th
         };
         SDL_RenderTexture(r, mTexture, NULL, &dst);
+        
+    }
+    void Move(float x,float y,float speed){
+        Tx=Tx+x*speed;
+        Ty=Ty+y*speed;
+    }
+    int begin(){
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<int> distrib(1,2);
+        if(distrib(gen)%2==0)return 1;
+        else return -1;
     }
     ~Ball(){
         SDL_DestroyTexture(mTexture);
@@ -114,6 +129,7 @@ struct SDLminiGame{
     bool running = true;
     bool fullscreen=false;
     int windowX,windowY;
+    float xBall,yBall,sBall;
     SDLminiGame(){
         SDL_Init(SDL_INIT_VIDEO);
         windowX=500;
@@ -129,6 +145,7 @@ struct SDLminiGame{
         player2= new Player(mRenderer,"./test1.bmp");
         back = new scene(mRenderer,"./background.bmp");
         ball = new Ball(mRenderer);
+
         player->Tx=240;
         player->Ty=400;
         player->OTx=222.5;
@@ -138,6 +155,10 @@ struct SDLminiGame{
         player2->Ty=100;
         player2->OTx=222.5;
         player2->OTy=82.5;
+
+        xBall=1;
+        yBall=ball->begin();
+        sBall=3;
     }
     ~SDLminiGame(){
         delete back;
@@ -148,13 +169,40 @@ struct SDLminiGame{
         SDL_DestroyWindow(mWindow);
         SDL_Quit();
     }
+
     void Tick(){
         Input();
+        BallInclude();
         Render();
+        float x,y;
+        SDL_GetMouseState(&x,&y);
+        //SDL_Log("x=%f,y=%f",x,y);
+    }
+    void BallInclude(){
+        BallTouchWall();
+        BallTouchPlayer();
+        ball->Move(xBall,yBall,sBall);
+    }
+    void BallTouchWall(){
+        if(ball->Tx<37 || ball->Tx>440) xBall=-xBall;
+        else if(ball->Ty<4 || ball->Ty>476) yBall=-yBall;
+    }
+    void BallTouchPlayer(){
+        float BallMidx,BallMidy;
+        float P1Midx,P1Midy,P2Midx,P2Midy;
+        float DtoP1,DtoP2;
+        BallMidx=ball->Tx+10, BallMidy=ball->Ty+10;
+        P1Midx=player->OTx+25, P1Midy=player->OTy+25;
+        P2Midx=player2->OTx+25, P2Midy=player2->OTy+25;
+        DtoP1=std::sqrt(((BallMidx-P1Midx)*(BallMidx-P1Midx))+((BallMidy-P1Midy)*(BallMidy-P1Midy)));
+        DtoP2=std::sqrt(((BallMidx-P2Midx)*(BallMidx-P2Midx))+((BallMidy-P2Midy)*(BallMidy-P2Midy)));
+        if(DtoP1<35 || DtoP2<35){
+            //xBall=-xBall;
+            yBall=-yBall;
+        }
     }
     void playerOneInput(){
         float midx,midy;
-        float Xhitbox,Yhitbox;
         float midOx,midOy;
         float distance;
         float totalP;
@@ -190,7 +238,6 @@ struct SDLminiGame{
     }
     void playerTwoInput(){
         float midx,midy;
-        float Xhitbox,Yhitbox;
         float midOx,midOy;
         float distance;
         float totalP;
