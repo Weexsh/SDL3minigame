@@ -130,6 +130,8 @@ struct SDLminiGame{
     bool fullscreen=false;
     int windowX,windowY;
     float xBall,yBall,sBall;
+    float xP1,yP1,sP1;
+    float xP2,yP2,sP2;
     SDLminiGame(){
         SDL_Init(SDL_INIT_VIDEO);
         windowX=500;
@@ -159,6 +161,10 @@ struct SDLminiGame{
         xBall=1;
         yBall=ball->begin();
         sBall=3;
+
+        xP1=0;
+        yP1=0;
+        sP1=1;
     }
     ~SDLminiGame(){
         delete back;
@@ -172,6 +178,7 @@ struct SDLminiGame{
 
     void Tick(){
         Input();
+        Update();
         BallInclude();
         Render();
         float x,y;
@@ -181,7 +188,6 @@ struct SDLminiGame{
     void BallInclude(){
         BallTouchWall();
         BallTouchPlayer();
-        ball->Move(xBall,yBall,sBall);
     }
     void BallTouchWall(){
         if(ball->Tx<37 || ball->Tx>440) xBall=-xBall;
@@ -191,15 +197,23 @@ struct SDLminiGame{
         float BallMidx,BallMidy;
         float P1Midx,P1Midy,P2Midx,P2Midy;
         float DtoP1,DtoP2;
+        float Vx,Vy;
+        float Vx2,Vy2,TotalV2;
+
         BallMidx=ball->Tx+10, BallMidy=ball->Ty+10;
         P1Midx=player->OTx+25, P1Midy=player->OTy+25;
         P2Midx=player2->OTx+25, P2Midy=player2->OTy+25;
         DtoP1=std::sqrt(((BallMidx-P1Midx)*(BallMidx-P1Midx))+((BallMidy-P1Midy)*(BallMidy-P1Midy)));
         DtoP2=std::sqrt(((BallMidx-P2Midx)*(BallMidx-P2Midx))+((BallMidy-P2Midy)*(BallMidy-P2Midy)));
         if(DtoP1<35 || DtoP2<35){
-            //xBall=-xBall;
-            yBall=-yBall;
+            Vx=xBall*sBall;
+            Vy=yBall*sBall;
+            TotalV2=std::sqrt(Vx2*Vx2+Vy2*Vy2);
+            xBall=Vx2/TotalV2;
+            yBall=Vy2/TotalV2;
+            sBall=TotalV2;
         }
+
     }
     void playerOneInput(){
         float midx,midy;
@@ -207,21 +221,21 @@ struct SDLminiGame{
         float distance;
         float totalP;
         float Px,Py;
+        xP1=0,yP1=0,sP1=1;
+
         const bool *key_states = SDL_GetKeyboardState(NULL);
-        float speed = 1;
         if(key_states[SDL_SCANCODE_LSHIFT]&&player->bar>0){
-            speed += 1;
+            sP1=2;
             player->bar-=10;
         }
         if(!(key_states[SDL_SCANCODE_LSHIFT])&&(player->bar<1000)){
             player->bar+=10;
         }  
+        if(key_states[SDL_SCANCODE_W]&&player->Ty>0)yP1=-2;
+        if(key_states[SDL_SCANCODE_S]&&player->Ty<480)yP1=2;
+        if(key_states[SDL_SCANCODE_D]&&player->Tx<444.5)xP1=2;
+        if(key_states[SDL_SCANCODE_A]&&player->Tx>40.5)xP1=-2;
 
-        if(key_states[SDL_SCANCODE_W]&&player->Ty>0)player->move(0,-2,speed);
-        if(key_states[SDL_SCANCODE_S]&&player->Ty<480)player->move(0,2,speed);
-        if(key_states[SDL_SCANCODE_D]&&player->Tx<444.5)player->move(2,0,speed);
-        if(key_states[SDL_SCANCODE_A]&&player->Tx>40.5)player->move(-2,0,speed);
-        
         midx=player->Tx+7.5;
         midy=player->Ty+7.5;
         midOx=player->OTx+25;
@@ -234,7 +248,11 @@ struct SDLminiGame{
             player->OTx+=totalP*(Px/distance);
             player->OTy+=totalP*(Py/distance);
         }
-        
+    }
+    void Update(){
+        ball->Move(xBall,yBall,sBall);
+        player->move(xP1,yP1,sP1);
+        player2->move(xP2,yP2,sP2);
     }
     void playerTwoInput(){
         float midx,midy;
@@ -243,18 +261,18 @@ struct SDLminiGame{
         float totalP;
         float Px,Py;
         const bool *key_states = SDL_GetKeyboardState(NULL);
-        float speed = 1;
+        xP2=0,yP2=0,sP2=1;
         if(key_states[SDL_SCANCODE_RSHIFT]&&player2->bar>0){
-            speed += 1;
+            sP2=2;
             player2->bar-=10;
         }
         if(!(key_states[SDL_SCANCODE_RSHIFT])&&(player2->bar<1000)){
             player2->bar+=10;
         }  
-        if(key_states[SDL_SCANCODE_I]&&player2->Ty>0)player2->move(0,-2,speed);
-        if(key_states[SDL_SCANCODE_K]&&player2->Ty<480)player2->move(0,2,speed);
-        if(key_states[SDL_SCANCODE_L]&&player2->Tx<444.5)player2->move(2,0,speed);
-        if(key_states[SDL_SCANCODE_J]&&player2->Tx>40.5)player2->move(-2,0,speed);
+        if(key_states[SDL_SCANCODE_I]&&player2->Ty>0)yP2=-2;
+        if(key_states[SDL_SCANCODE_K]&&player2->Ty<480)yP2=2;
+        if(key_states[SDL_SCANCODE_L]&&player2->Tx<444.5)xP2=2;
+        if(key_states[SDL_SCANCODE_J]&&player2->Tx>40.5)xP2=-2;
         midx=player2->Tx+7.5;
         midy=player2->Ty+7.5;
         midOx=player2->OTx+25;
