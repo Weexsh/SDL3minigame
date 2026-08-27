@@ -132,7 +132,7 @@ struct SDLminiGame{
     float xBall,yBall,sBall;
     float vxP1,vyP1;
     float vxP2,vyP2;
-    unsigned int scoreTime,currentTime;
+    unsigned int scoreTime,currentTime,touchTime;
     SDLminiGame(){
         SDL_Init(SDL_INIT_VIDEO);
         windowX=500;
@@ -168,6 +168,7 @@ struct SDLminiGame{
 
         player->score=0;
         player2->score=0;
+        touchTime=0;
     }
     ~SDLminiGame(){
         delete back;
@@ -180,9 +181,11 @@ struct SDLminiGame{
     }
 
     void Tick(){
+        vxP1=0,vyP1=0;
+        BallInclude();
         Input();
         Update();
-        BallInclude();
+        
         Render();
         float x,y;
         SDL_GetMouseState(&x,&y);
@@ -192,7 +195,7 @@ struct SDLminiGame{
         BallTouchWall();
         BallTouchPlayer();
         currentTime=SDL_GetTicks();
-        if(currentTime>scoreTime+2000) sBall=3;
+        if(currentTime>scoreTime+2000) sBall=5;
         if(Score()){
             scoreTime=SDL_GetTicks();
             Reset();
@@ -219,29 +222,53 @@ struct SDLminiGame{
         float BallMidx,BallMidy;
         float P1Midx,P1Midy,P2Midx,P2Midy;
         float DtoP1,DtoP2;
-        float Vx,Vy;
-        float Vx2,Vy2,TotalV2;
+        float V1n,V1t,V2n,V2t;
         float diffX,diffY;
-        float nx,ny;
-        float tx,ty;
+        float nx,ny,tx,ty;
+        float afterTouchV1n,afterTouchV2n;
+        float overlap;
         BallMidx=ball->Tx+10, BallMidy=ball->Ty+10;
         P1Midx=player->OTx+25, P1Midy=player->OTy+25;
         P2Midx=player2->OTx+25, P2Midy=player2->OTy+25;
         DtoP1=std::sqrt(((BallMidx-P1Midx)*(BallMidx-P1Midx))+((BallMidy-P1Midy)*(BallMidy-P1Midy)));
         DtoP2=std::sqrt(((BallMidx-P2Midx)*(BallMidx-P2Midx))+((BallMidy-P2Midy)*(BallMidy-P2Midy)));
         if(DtoP1<35){
+            touchTime=SDL_GetTicks();
+            overlap=35-DtoP1;
             diffX=BallMidx-P1Midx;
             diffY=BallMidy-P1Midy;
             nx=diffX/DtoP1;
             ny=diffY/DtoP1;
-            tx=-ny;
+            tx=-1*ny;
             ty=nx;
+            player->Tx=player->Tx-nx*(overlap/2);
+            player->Ty=player->Ty-ny*(overlap/2);
+            player->OTx=player->OTx-nx*(overlap/2);
+            player->OTy=player->OTy-ny*(overlap/2);
+            ball->Tx=ball->Tx+nx*(overlap/2);
+            ball->Ty=ball->Ty+ny*(overlap/2);
+            V1n=vxP1*nx+vyP1*ny;
+            V1t=vxP1*tx+vyP1*ty;
+            V2n=xBall*nx+yBall*ny;
+            V2t=xBall*tx+yBall*ty;
+            afterTouchV1n=V1n+1.8*(V2n-V1n);
+            afterTouchV2n=(4*V1n-V2n)/3;
             
+            if((V1n-V2n)>0){
+                vxP1=vxP1+(afterTouchV1n-V1n)*nx;
+                vyP1=vyP1+(afterTouchV1n-V1n)*ny;
+                vxP1=vxP1*10;
+                vyP1=vyP1*10;
+                xBall=xBall+(afterTouchV2n-V2n)*nx;
+                yBall=yBall+(afterTouchV2n-V2n)*ny;
+                SDL_Log("%f    %f",vxP1,vyP1);
+            }
         }
     }
     void Reset(){ 
         xBall=0;
-        yBall=ball->begin();
+        yBall=1;
+        //yBall=ball->begin();
         sBall=0;
 
         ball->Tx=240;
@@ -253,22 +280,23 @@ struct SDLminiGame{
         float distance;
         float totalP;
         float Px,Py;
-        vxP1=0,vyP1=0;
         float speed;
         const bool *key_states = SDL_GetKeyboardState(NULL);
-        if(key_states[SDL_SCANCODE_W]&&player->Ty>0)vyP1=-2;
-        if(key_states[SDL_SCANCODE_S]&&player->Ty<480)vyP1=2;
-        if(key_states[SDL_SCANCODE_D]&&player->Tx<444.5)vxP1=2;
-        if(key_states[SDL_SCANCODE_A]&&player->Tx>40.5)vxP1=-2;
-        if(key_states[SDL_SCANCODE_LSHIFT]&&player->bar>0){
-            speed=2;
-            vxP1=speed*vxP1;
-            vyP1=speed*vyP1;
-            player->bar-=10;
+        if(currentTime>touchTime+1000){
+            if(key_states[SDL_SCANCODE_W]&&player->Ty>0)vyP1=-2;
+            if(key_states[SDL_SCANCODE_S]&&player->Ty<480)vyP1=2;
+            if(key_states[SDL_SCANCODE_D]&&player->Tx<444.5)vxP1=2;
+            if(key_states[SDL_SCANCODE_A]&&player->Tx>40.5)vxP1=-2;
+            if(key_states[SDL_SCANCODE_LSHIFT]&&player->bar>0){
+                speed=2;
+                vxP1=speed*vxP1;
+                vyP1=speed*vyP1;
+                player->bar-=10;
+            }
+            if(!(key_states[SDL_SCANCODE_LSHIFT])&&(player->bar<1000)){
+                player->bar+=10;
+            } 
         }
-        if(!(key_states[SDL_SCANCODE_LSHIFT])&&(player->bar<1000)){
-            player->bar+=10;
-        } 
         midx=player->Tx+7.5;
         midy=player->Ty+7.5;
         midOx=player->OTx+25;
@@ -323,6 +351,9 @@ struct SDLminiGame{
         }
     }
     void Input(){
+        playerOneInput();
+        playerTwoInput();
+
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) { 
@@ -334,8 +365,6 @@ struct SDLminiGame{
                 }
             }
         }
-        playerOneInput();
-        playerTwoInput();
     }
     void RenderText(){
         SDL_SetRenderDrawColor(mRenderer, 0xFF, 0x00, 0x00, 0xFF);
