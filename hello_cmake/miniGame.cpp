@@ -17,7 +17,6 @@ struct Player{
     Player(SDL_Renderer* r,std::string n){
         Tw=15,Th=15;
         OTw=50,OTh=50;
-        score = 0;
         bar=1000;
         mSurface=SDL_LoadBMP(n.c_str());
         whiteKey = SDL_MapSurfaceRGBA(mSurface, 0xFF, 0xFF, 0xFF,0xFF);
@@ -126,7 +125,8 @@ struct Ball{
 enum class GameState{
     Start,
     Playing,
-    Pause
+    Pause,
+    intro
 };
 struct SDLminiGame{
     SDL_Window *mWindow;
@@ -136,6 +136,7 @@ struct SDLminiGame{
     scene* back;
     scene* beginBack;
     scene* pauseBack;
+    scene* howToPlay;
     Ball* ball;
     bool running;
     bool fullscreen;
@@ -161,6 +162,7 @@ struct SDLminiGame{
         back = new scene(mRenderer,"./background.bmp");
         beginBack = new scene(mRenderer,"./startScene.bmp");
         pauseBack = new scene(mRenderer,"./pauseBack.bmp");
+        howToPlay = new scene(mRenderer,"./HowToPlay.bmp");
         ball = new Ball(mRenderer); 
         running = true;
         fullscreen=false;
@@ -265,7 +267,7 @@ struct SDLminiGame{
                 player->OTy-=ny*(overlap/2);
                 ball->Tx+=nx*(overlap/2);
                 ball->Ty+=ny*(overlap/2);           
-                afterTouchV1n=V1n+30.0f*(V2n-V1n);
+                afterTouchV1n=V1n+15.0f*(V2n-V1n);
                 afterTouchV2n=-1.5f*V2n+V1n;
                 vxP1+=(afterTouchV1n-V1n)*nx;
                 vyP1+=(afterTouchV1n-V1n)*ny;
@@ -303,7 +305,7 @@ struct SDLminiGame{
                 player2->OTy-=ny*(overlap/2);
                 ball->Tx+=nx*(overlap/2);
                 ball->Ty+=ny*(overlap/2);      
-                afterTouchV1n=V1n+30.0f*(V2n-V1n);
+                afterTouchV1n=V1n+15.0f*(V2n-V1n);
                 afterTouchV2n=-1.5f*V2n+V1n;
                 vxP2+=(afterTouchV1n-V1n)*nx;
                 vyP2+=(afterTouchV1n-V1n)*ny;
@@ -443,6 +445,9 @@ struct SDLminiGame{
                         if((x>150) && (x<350) && (y>270) && (y<350)){
                             gameState=GameState::Playing;
                         }
+                        else if((x>150) && (x<350) && (y>185) && (y<250)){
+                            gameState=GameState::intro;
+                        }
                         else if((x>150) && (x<350) && (y>370) && (y<460)){
                             running=false;
                         }
@@ -454,6 +459,11 @@ struct SDLminiGame{
                         else if((x>150) && (x<350) && (y>390) && (y<455)){
                             gameState=GameState::Start;
                             GameReset();
+                        }
+                    }
+                    else if(gameState==GameState::intro){
+                        if((x>104) && (x<406) && (y>350) && (y<440)){
+                            gameState=GameState::Start;
                         }
                     }
                 }
@@ -525,6 +535,9 @@ struct SDLminiGame{
                 break;
             case GameState::Playing:
                 MainGameRender();
+                break;
+            case GameState::intro:
+                howToPlay->render(mRenderer);
                 break;
             default:
                 break;
