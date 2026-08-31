@@ -123,20 +123,28 @@ struct Ball{
         SDL_DestroyTexture(mTexture);
     }
 };
+enum class GameState{
+    Start,
+    Playing,
+    Pause
+};
 struct SDLminiGame{
     SDL_Window *mWindow;
     SDL_Renderer *mRenderer;
     Player* player;
     Player* player2;
     scene* back;
+    scene* beginBack;
+    scene* pauseBack;
     Ball* ball;
-    bool running = true;
-    bool fullscreen=false;
+    bool running;
+    bool fullscreen;
     int windowX,windowY;
     float xBall,yBall,sBall;
     float vxP1,vyP1;
     float vxP2,vyP2;
     unsigned int scoreTime,currentTime,touchTimeOne,touchTimeTwo;
+    GameState gameState;
     SDLminiGame(){
         SDL_Init(SDL_INIT_VIDEO);
         windowX=500;
@@ -149,9 +157,13 @@ struct SDLminiGame{
         SDL_SetWindowResizable(mWindow,true); 
         SDL_SetRenderLogicalPresentation(mRenderer, 500, 500,SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
         player = new Player(mRenderer,"./test.bmp");
-        player2= new Player(mRenderer,"./test1.bmp");
+        player2= new Player(mRenderer,"./test.bmp");
         back = new scene(mRenderer,"./background.bmp");
-        ball = new Ball(mRenderer);
+        beginBack = new scene(mRenderer,"./startScene.bmp");
+        pauseBack = new scene(mRenderer,"./pauseBack.bmp");
+        ball = new Ball(mRenderer); 
+        running = true;
+        fullscreen=false;
 
         player->Tx=240;
         player->Ty=400;
@@ -174,6 +186,8 @@ struct SDLminiGame{
         player2->score=0;
         touchTimeOne=0;
         touchTimeTwo=0;
+        
+        gameState=GameState::Start;
     }
     ~SDLminiGame(){
         delete back;
@@ -188,14 +202,12 @@ struct SDLminiGame{
     void Tick(){
         vxP1=0,vyP1=0;
         vxP2=0,vyP2=0;
-        BallInclude();
-        Input();
-        Update();
-        
         Render();
-        float x,y;
-        SDL_GetMouseState(&x,&y);
-        //SDL_Log("x=%f,y=%f",x,y);
+        Input();
+        if(gameState==GameState::Playing){
+            BallInclude();
+            Update();
+        } 
     }
     void BallInclude(){
         BallTouchWall();
@@ -205,7 +217,7 @@ struct SDLminiGame{
         if(currentTime>scoreTime+2000) sBall=5;
         if(Score()){
             scoreTime=SDL_GetTicks();
-            Reset();
+            BallReset();
         }
     }
     bool Score(){
@@ -224,44 +236,6 @@ struct SDLminiGame{
     void BallTouchWall(){
         if(ball->Tx<37 || ball->Tx>440) xBall=-xBall;
         else if(ball->Ty<4 || ball->Ty>476) yBall=-yBall;
-    }
-    void BallTouchPlayer2(){
-        float BallMidx,BallMidy;
-        float P2Midx,P2Midy;
-        float DtoP2;
-        float V1n,V2n;
-        float diffX,diffY;
-        float nx,ny;
-        float afterTouchV1n,afterTouchV2n;
-        float overlap;
-        BallMidx=ball->Tx+10, BallMidy=ball->Ty+10;
-        P2Midx=player2->OTx+25, P2Midy=player2->OTy+25;
-        DtoP2=std::sqrt(((BallMidx-P2Midx)*(BallMidx-P2Midx))+((BallMidy-P2Midy)*(BallMidy-P2Midy)));
-        if(DtoP2<35){
-            touchTimeTwo=SDL_GetTicks();
-            overlap=35-DtoP2;
-            diffX=BallMidx-P2Midx;
-            diffY=BallMidy-P2Midy;
-            nx=diffX/DtoP2;
-            ny=diffY/DtoP2;
-            V1n=vxP2*nx+vyP2*ny;
-            V2n=xBall*nx+yBall*ny;
-            if((V1n-V2n)>0){
-                player2->Tx-=nx*(overlap/2);
-                player2->Ty-=ny*(overlap/2);
-                player2->OTx-=nx*(overlap/2);
-                player2->OTy-=ny*(overlap/2);
-                ball->Tx+=nx*(overlap/2);
-                ball->Ty+=ny*(overlap/2);      
-                afterTouchV1n=V1n+30.0f*(V2n-V1n);
-                afterTouchV2n=-1.5f*V2n+V1n;
-                vxP2+=(afterTouchV1n-V1n)*nx;
-                vyP2+=(afterTouchV1n-V1n)*ny;
-                player2->RingMove(vxP2,vyP2);
-                xBall+=(afterTouchV2n-V2n)*nx;
-                yBall+=(afterTouchV2n-V2n)*ny;
-            }
-        }
     }
     void BallTouchPlayer1(){
         float BallMidx,BallMidy;
@@ -301,13 +275,74 @@ struct SDLminiGame{
             }
         }
     }
-    void Reset(){ 
+    void BallTouchPlayer2(){
+        float BallMidx,BallMidy;
+        float P2Midx,P2Midy;
+        float DtoP2;
+        float V1n,V2n;
+        float diffX,diffY;
+        float nx,ny;
+        float afterTouchV1n,afterTouchV2n;
+        float overlap;
+        BallMidx=ball->Tx+10, BallMidy=ball->Ty+10;
+        P2Midx=player2->OTx+25, P2Midy=player2->OTy+25;
+        DtoP2=std::sqrt(((BallMidx-P2Midx)*(BallMidx-P2Midx))+((BallMidy-P2Midy)*(BallMidy-P2Midy)));
+        if(DtoP2<35){
+            touchTimeTwo=SDL_GetTicks();
+            overlap=35-DtoP2;
+            diffX=BallMidx-P2Midx;
+            diffY=BallMidy-P2Midy;
+            nx=diffX/DtoP2;
+            ny=diffY/DtoP2;
+            V1n=vxP2*nx+vyP2*ny;
+            V2n=xBall*nx+yBall*ny;
+            if((V1n-V2n)>0){
+                player2->Tx-=nx*(overlap/2);
+                player2->Ty-=ny*(overlap/2);
+                player2->OTx-=nx*(overlap/2);
+                player2->OTy-=ny*(overlap/2);
+                ball->Tx+=nx*(overlap/2);
+                ball->Ty+=ny*(overlap/2);      
+                afterTouchV1n=V1n+30.0f*(V2n-V1n);
+                afterTouchV2n=-1.5f*V2n+V1n;
+                vxP2+=(afterTouchV1n-V1n)*nx;
+                vyP2+=(afterTouchV1n-V1n)*ny;
+                player2->RingMove(vxP2,vyP2);
+                xBall+=(afterTouchV2n-V2n)*nx;
+                yBall+=(afterTouchV2n-V2n)*ny;
+            }
+        }
+    }
+    void BallReset(){ 
         xBall=0;
         yBall=ball->begin();
         sBall=0;
+        
+        ball->Tx=240;
+        ball->Ty=240;
+    }
+    void GameReset(){
+        player->Tx=240;
+        player->Ty=400;
+        player->OTx=222.5;
+        player->OTy=382.5;
+
+        player2->Tx=240;
+        player2->Ty=100;
+        player2->OTx=222.5;
+        player2->OTy=82.5;
 
         ball->Tx=240;
         ball->Ty=240;
+
+        xBall=0;
+        yBall=ball->begin();
+        sBall=4;
+
+        player->score=0;
+        player2->score=0;
+        touchTimeOne=0;
+        touchTimeTwo=0;
     }
     void playerOneInput(){
         float midx,midy;
@@ -345,11 +380,6 @@ struct SDLminiGame{
             player->OTy+=totalP*(Py/distance);
         }
     }
-    void Update(){
-        ball->Move(xBall,yBall,sBall);
-        player->move(vxP1,vyP1);
-        player2->move(vxP2,vyP2);
-    }
     void playerTwoInput(){
         float midx,midy;
         float midOx,midOy;
@@ -386,22 +416,55 @@ struct SDLminiGame{
             player2->OTx+=totalP*(Px/distance);
             player2->OTy+=totalP*(Py/distance);
         }
-    }
-    void Input(){
+    } 
+    void Input(){  
         playerOneInput();
         playerTwoInput();
 
+        float x,y;
+        SDL_GetMouseState(&x,&y);
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EVENT_QUIT) { 
+            if (event.type == SDL_EVENT_QUIT ){
                 running = false;
-            }else if(event.type==SDL_EVENT_KEY_DOWN){
+            }
+            else if(event.type==SDL_EVENT_KEY_DOWN){
                 if(event.key.key==SDLK_F11){
                     fullscreen=!fullscreen;
                     SDL_SetWindowFullscreen(mWindow,fullscreen);
                 }
+                else if(event.key.key==SDLK_ESCAPE && (gameState==GameState::Playing)){
+                    gameState=GameState::Pause;
+                }
+            }
+            else if(event.type == SDL_EVENT_MOUSE_BUTTON_DOWN){
+                if(event.button.button == SDL_BUTTON_LEFT){ 
+                    if(gameState==GameState::Start){
+                        if((x>150) && (x<350) && (y>270) && (y<350)){
+                            gameState=GameState::Playing;
+                        }
+                        else if((x>150) && (x<350) && (y>370) && (y<460)){
+                            running=false;
+                        }
+                    }
+                    else if(gameState==GameState::Pause){
+                        if((x>150) && (x<350) && (y>241) && (y<312)){
+                            gameState=GameState::Playing;
+                        }
+                        else if((x>150) && (x<350) && (y>390) && (y<455)){
+                            gameState=GameState::Start;
+                            GameReset();
+                        }
+                    }
+                }
+                
             }
         }
+    }
+    void Update(){
+        ball->Move(xBall,yBall,sBall);
+        player->move(vxP1,vyP1);
+        player2->move(vxP2,vyP2);
     }
     void RenderText(){
         SDL_SetRenderDrawColor(mRenderer, 0xFF, 0x00, 0x00, 0xFF);
@@ -440,17 +503,32 @@ struct SDLminiGame{
         SDL_RenderRect(mRenderer,&PlayerOneBoardary);
         SDL_RenderRect(mRenderer,&PlayerTwoBoardary);
     }
-    void Render(){
-        SDL_SetRenderDrawColor(mRenderer, 0x00, 0x48, 0x00, 0xFF);
-        
-        SDL_RenderClear(mRenderer);
-
+    void MainGameRender(){
         back->render(mRenderer);
         ball->render(mRenderer);
         player->render(mRenderer);
         player2->render(mRenderer);
         RenderText();
         RenderRect();
+        
+    }
+    void Render(){
+        SDL_SetRenderDrawColor(mRenderer, 0x00, 0x48, 0x00, 0xFF);
+        
+        SDL_RenderClear(mRenderer);
+        switch (gameState){
+            case GameState::Start:
+                beginBack->render(mRenderer);
+                break;
+            case GameState::Pause:
+                pauseBack->render(mRenderer);
+                break;
+            case GameState::Playing:
+                MainGameRender();
+                break;
+            default:
+                break;
+        }
         SDL_RenderPresent(mRenderer);
     }
     void MainRun(){
