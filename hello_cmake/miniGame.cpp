@@ -126,7 +126,8 @@ enum class GameState{
     Start,
     Playing,
     Pause,
-    intro
+    intro,
+    gameover
 };
 struct SDLminiGame{
     SDL_Window *mWindow;
@@ -137,6 +138,8 @@ struct SDLminiGame{
     scene* beginBack;
     scene* pauseBack;
     scene* howToPlay;
+    scene* playerOneWin;
+    scene* playerTwoWin;
     Ball* ball;
     bool running;
     bool fullscreen;
@@ -144,7 +147,7 @@ struct SDLminiGame{
     float xBall,yBall,sBall;
     float vxP1,vyP1;
     float vxP2,vyP2;
-    unsigned int scoreTime,currentTime,touchTimeOne,touchTimeTwo;
+    unsigned int scoreTime,currentTime,touchTimeOne,touchTimeTwo,gameoverTime;
     GameState gameState;
     SDLminiGame(){
         SDL_Init(SDL_INIT_VIDEO);
@@ -163,6 +166,8 @@ struct SDLminiGame{
         beginBack = new scene(mRenderer,"./startScene.bmp");
         pauseBack = new scene(mRenderer,"./pauseBack.bmp");
         howToPlay = new scene(mRenderer,"./HowToPlay.bmp");
+        playerOneWin = new scene(mRenderer,"./playerOneWin.bmp");
+        playerTwoWin = new scene(mRenderer,"./playerTwoWin.bmp");
         ball = new Ball(mRenderer); 
         running = true;
         fullscreen=false;
@@ -188,7 +193,7 @@ struct SDLminiGame{
         player2->score=0;
         touchTimeOne=0;
         touchTimeTwo=0;
-        
+        gameoverTime=0;
         gameState=GameState::Start;
     }
     ~SDLminiGame(){
@@ -204,6 +209,7 @@ struct SDLminiGame{
     void Tick(){
         vxP1=0,vyP1=0;
         vxP2=0,vyP2=0;
+        currentTime=SDL_GetTicks();
         Render();
         Input();
         if(gameState==GameState::Playing){
@@ -215,22 +221,25 @@ struct SDLminiGame{
         BallTouchWall();
         BallTouchPlayer2();
         BallTouchPlayer1();
-        currentTime=SDL_GetTicks();
         if(currentTime>scoreTime+2000) sBall=5;
         if(Score()){
             scoreTime=SDL_GetTicks();
             BallReset();
+            if(player->score>=3 || player2->score>=3){
+                gameoverTime = SDL_GetTicks();
+                gameState = GameState::gameover;
+            }
         }
     }
     bool Score(){
         float BallMidx,BallMidy;
         BallMidx=ball->Tx+10, BallMidy=ball->Ty+10;
         if(BallMidy>486&&BallMidx<327&&BallMidx>171){
-            player->score+=1;
+            player2->score+=1;
             return 1;
         }
         if(BallMidy<14&&BallMidx<327&&BallMidx>171){
-            player2->score+=1;
+            player->score+=1;
             return 1;
         }
         return 0;
@@ -478,8 +487,8 @@ struct SDLminiGame{
     }
     void RenderText(){
         SDL_SetRenderDrawColor(mRenderer, 0xFF, 0x00, 0x00, 0xFF);
-        SDL_RenderDebugTextFormat(mRenderer,390, 465, "point:%d",player2->score);
-        SDL_RenderDebugTextFormat(mRenderer, 65,  25, "point:%d",player->score);
+        SDL_RenderDebugTextFormat(mRenderer,390, 465, "point:%d",player->score);
+        SDL_RenderDebugTextFormat(mRenderer, 65,  25, "point:%d",player2->score);
     }
     void RenderRect(){
         SDL_FRect PlayerOneRect{
@@ -538,6 +547,20 @@ struct SDLminiGame{
                 break;
             case GameState::intro:
                 howToPlay->render(mRenderer);
+                break; 
+            case GameState::gameover:
+                SDL_Log("%d  %d",gameoverTime,currentTime);
+                if(currentTime<gameoverTime+3000){
+                    if(player->score>=3){
+                        playerOneWin->render(mRenderer);
+                    }
+                    else if(player2->score>=3){
+                        playerTwoWin->render(mRenderer);
+                    }
+                }else{
+                    GameReset();
+                    gameState=GameState::Start;
+                }
                 break;
             default:
                 break;
