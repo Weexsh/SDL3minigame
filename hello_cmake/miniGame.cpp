@@ -4,6 +4,8 @@
 #include <string>
 #include <cmath>
 #include <random>
+#define _CRTDBG_MAP_ALLOC
+#include <crtdbg.h>
 struct Player{
     SDL_Surface *mSurface;
     SDL_Texture *mTexture;
@@ -132,27 +134,24 @@ enum class GameState{
 struct SDLminiGame{
     SDL_Window *mWindow;
     SDL_Renderer *mRenderer;
-    Player* player;
-    Player* player2;
     scene* back;
     scene* beginBack;
     scene* pauseBack;
     scene* howToPlay;
     scene* playerOneWin;
     scene* playerTwoWin;
+    Player* player;
+    Player* player2;
     Ball* ball;
-    bool running;
-    bool fullscreen;
+    bool running,fullscreen;
     int windowX,windowY;
     float xBall,yBall,sBall;
-    float vxP1,vyP1;
-    float vxP2,vyP2;
+    float vxP1,vyP1,vxP2,vyP2;
     unsigned int scoreTime,currentTime,touchTimeOne,touchTimeTwo,gameoverTime;
     GameState gameState;
     SDLminiGame(){
         SDL_Init(SDL_INIT_VIDEO);
-        windowX=500;
-        windowY=500;
+        windowX=500,windowY=500;
         mWindow = SDL_CreateWindow("first miniGame", windowX,windowY, SDL_WINDOW_OPENGL);
         if(!(mWindow)){
             SDL_Log("window創建失敗: %s",SDL_GetError());
@@ -160,17 +159,18 @@ struct SDLminiGame{
         mRenderer=SDL_CreateRenderer(mWindow,nullptr);
         SDL_SetWindowResizable(mWindow,true); 
         SDL_SetRenderLogicalPresentation(mRenderer, 500, 500,SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
-        player = new Player(mRenderer,"./test.bmp");
-        player2= new Player(mRenderer,"./test.bmp");
-        back = new scene(mRenderer,"./background.bmp");
-        beginBack = new scene(mRenderer,"./startScene.bmp");
+        ball    = new Ball(mRenderer); 
+        player  = new Player(mRenderer,"./test.bmp");
+        player2 = new Player(mRenderer,"./test.bmp");
+        back    = new scene(mRenderer,"./background.bmp");
         pauseBack = new scene(mRenderer,"./pauseBack.bmp");
         howToPlay = new scene(mRenderer,"./HowToPlay.bmp");
+        beginBack = new scene(mRenderer,"./startScene.bmp");
         playerOneWin = new scene(mRenderer,"./playerOneWin.bmp");
         playerTwoWin = new scene(mRenderer,"./playerTwoWin.bmp");
-        ball = new Ball(mRenderer); 
-        running = true;
-        fullscreen=false;
+
+        running    = true;
+        fullscreen = false;
 
         player->Tx=240;
         player->Ty=400;
@@ -191,16 +191,24 @@ struct SDLminiGame{
 
         player->score=0;
         player2->score=0;
+
         touchTimeOne=0;
         touchTimeTwo=0;
         gameoverTime=0;
+
         gameState=GameState::Start;
     }
     ~SDLminiGame(){
         delete back;
+
         delete player;
         delete player2;
         delete ball;
+        delete beginBack;
+        delete pauseBack;
+        delete howToPlay;
+        delete playerOneWin;
+        delete playerTwoWin;
         SDL_DestroyRenderer(mRenderer);
         SDL_DestroyWindow(mWindow);
         SDL_Quit();
@@ -549,7 +557,6 @@ struct SDLminiGame{
                 howToPlay->render(mRenderer);
                 break; 
             case GameState::gameover:
-                SDL_Log("%d  %d",gameoverTime,currentTime);
                 if(currentTime<gameoverTime+3000){
                     if(player->score>=3){
                         playerOneWin->render(mRenderer);
@@ -575,6 +582,7 @@ struct SDLminiGame{
     }
 };
 int main(int argc,char*argv[]){
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
     SDLminiGame Game; 
     Game.MainRun();
     return 0;
