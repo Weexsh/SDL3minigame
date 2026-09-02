@@ -4,8 +4,6 @@
 #include <string>
 #include <cmath>
 #include <random>
-#define _CRTDBG_MAP_ALLOC
-#include <crtdbg.h>
 struct Player{
     SDL_Surface *mSurface;
     SDL_Texture *mTexture;
@@ -284,7 +282,7 @@ struct SDLminiGame{
                 player->OTy-=ny*(overlap/2);
                 ball->Tx+=nx*(overlap/2);
                 ball->Ty+=ny*(overlap/2);           
-                afterTouchV1n=V1n+15.0f*(V2n-V1n);
+                afterTouchV1n=V1n+5.0f*(V2n-V1n);
                 afterTouchV2n=-1.5f*V2n+V1n;
                 vxP1+=(afterTouchV1n-V1n)*nx;
                 vyP1+=(afterTouchV1n-V1n)*ny;
@@ -322,7 +320,7 @@ struct SDLminiGame{
                 player2->OTy-=ny*(overlap/2);
                 ball->Tx+=nx*(overlap/2);
                 ball->Ty+=ny*(overlap/2);      
-                afterTouchV1n=V1n+15.0f*(V2n-V1n);
+                afterTouchV1n=V1n+5.0f*(V2n-V1n);
                 afterTouchV2n=-1.5f*V2n+V1n;
                 vxP2+=(afterTouchV1n-V1n)*nx;
                 vyP2+=(afterTouchV1n-V1n)*ny;
@@ -582,7 +580,6 @@ struct SDLminiGame{
     }
 };
 int main(int argc,char*argv[]){
-    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
     SDLminiGame Game; 
     Game.MainRun();
     return 0;
